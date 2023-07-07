@@ -35,7 +35,7 @@ build:
 	done
 
 publish: build
-	docker manifest rm ${IMAGE_NAME}
+	docker manifest rm ${IMAGE_NAME} | true
 	for arch in ${ARCHES}; do \
   		docker push ${IMAGE_NAME}-$$arch ; \
   		docker manifest create ${IMAGE_NAME} --amend ${IMAGE_NAME}-$$arch ; \
