@@ -14,7 +14,11 @@
 ARG PHP_BASE_VERSION
 
 ### BUILD: install dependencies, copy the source code and create the PHAR
-FROM gbmcarlos/php-base:${PHP_BASE_VERSION} as compile
+ARG BASE_IMAGE_USER
+ARG BASE_IMAGE_TAG
+ARG BASE_IMAGE_ARCH
+
+FROM ${BASE_IMAGE_USER}/php-base:${BASE_IMAGE_TAG}-${BASE_IMAGE_ARCH} as compile
 
 WORKDIR /var/task
 
@@ -35,7 +39,7 @@ COPY ./box.json ./
 COPY ./src ./src
 
 ## And build the PHAR
-RUN /root/.config/composer/vendor/bin/box compile
+RUN /root/.composer/vendor/bin/box compile
 
 ## Download and install the Runtime Emulator
 RUN curl -sLo /var/task/aws-lambda-rie \
@@ -43,7 +47,7 @@ RUN curl -sLo /var/task/aws-lambda-rie \
         && chmod +x /var/task/aws-lambda-rie
 
 # In this state, start from scratch and just copy the final artifacts
-FROM scratch as package
+FROM scratch as base
 
 # The Runtime Client
 COPY --from=compile /var/task/build/bootstrap /opt/bootstrap

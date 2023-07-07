@@ -6,13 +6,14 @@ MAKEFILE_PATH := $(abspath $(lastword ${MAKEFILE_LIST}))
 PROJECT_PATH := $(dir ${MAKEFILE_PATH})
 PROJECT_NAME := $(notdir $(patsubst %/,%,$(dir ${PROJECT_PATH})))
 
-export IMAGE_USER := gbmcarlos
-export IMAGE_REPO := ${PROJECT_NAME}
-export IMAGE_TAG ?= 2.1.0
-
-export PHP_BASE_VERSION ?= 3.0.0
-
 export DOCKER_BUILDKIT ?= 1
+export IMAGE_REGISTRY := docker.io
+export IMAGE_USER := gbmcarlos
+export IMAGE_REPO := php-runtime
+export IMAGE_TAG := latest
+export ARCHES := arm64 amd64
+export IMAGE_NAME := ${IMAGE_REGISTRY}/${IMAGE_USER}/${IMAGE_REPO}:${IMAGE_TAG}
+
 export XDEBUG_ENABLED ?= true
 export XDEBUG_REMOTE_HOST ?= host.docker.internal
 export XDEBUG_REMOTE_PORT ?= 10000
@@ -22,14 +23,24 @@ export MEMORY_LIMIT ?= 3M
 export _HANDLER ?= index
 
 build:
-	docker build \
-		-t ${IMAGE_USER}/${IMAGE_REPO}:${IMAGE_TAG} \
-		--target package \
-		--build-arg PHP_BASE_VERSION \
-		${CURDIR}
+	for arch in ${ARCHES}; do \
+		docker build \
+		--platform linux/$$arch \
+		-t ${IMAGE_NAME}-$$arch \
+		--target base \
+		--build-arg BASE_IMAGE_USER=${IMAGE_USER} \
+		--build-arg BASE_IMAGE_TAG=${IMAGE_TAG} \
+		--build-arg BASE_IMAGE_ARCH=$$arch \
+		${CURDIR} ; \
+	done
 
 publish: build
-	docker push ${IMAGE_USER}/${IMAGE_REPO}:${IMAGE_TAG}
+	docker manifest rm ${IMAGE_NAME}
+	for arch in ${ARCHES}; do \
+  		docker push ${IMAGE_NAME}-$$arch ; \
+  		docker manifest create ${IMAGE_NAME} --amend ${IMAGE_NAME}-$$arch ; \
+	done
+	docker manifest push ${IMAGE_NAME}
 
 test: build
 	docker build \
